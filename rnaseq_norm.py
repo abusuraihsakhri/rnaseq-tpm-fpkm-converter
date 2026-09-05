@@ -12,8 +12,19 @@ import argparse
 import csv
 import json
 import math
+import os
 import sys
+from pathlib import Path
 from typing import Dict, Any, List, Optional
+
+
+def _validate_safe_path(filepath: str) -> Path:
+    """Validate that a file path is safe (no path traversal)."""
+    # Check raw path string for traversal attempts before resolution
+    if ".." in filepath:
+        raise ValueError(f"Path traversal detected: {filepath}")
+    p = Path(filepath).resolve()
+    return p
 
 
 def calculate_metrics(**kwargs) -> Dict[str, Any]:
@@ -66,10 +77,24 @@ def process_single(args) -> None:
 
 
 def process_batch(input_csv: str, output_csv: str) -> None:
-    with open(input_csv, mode="r", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        fieldnames = list(reader.fieldnames or [])
-        rows = list(reader)
+    input_path = _validate_safe_path(input_csv)
+    output_path = _validate_safe_path(output_csv)
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input file not found: {input_csv}")
+    if not input_path.is_file():
+        raise ValueError(f"Input path is not a file: {input_csv}")
+
+    try:
+        with open(input_path, mode="r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            fieldnames = list(reader.fieldnames or [])
+            rows = list(reader)
+    except csv.Error as e:
+        raise ValueError(f"Invalid CSV format: {e}")
+
+    if not fieldnames:
+        raise ValueError("CSV file is empty or has no headers")
 
     out_fields = fieldnames + ["score", "classification", "clinical_recommendation"]
     out_rows = []
@@ -82,10 +107,13 @@ def process_batch(input_csv: str, output_csv: str) -> None:
         row_dict["clinical_recommendation"] = calc_res["clinical_recommendation"]
         out_rows.append(row_dict)
 
-    with open(output_csv, mode="w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=out_fields)
-        writer.writeheader()
-        writer.writerows(out_rows)
+    try:
+        with open(output_path, mode="w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=out_fields)
+            writer.writeheader()
+            writer.writerows(out_rows)
+    except OSError as e:
+        raise IOError(f"Failed to write output file: {e}")
 
     print(f"Processed {len(out_rows)} records -> {output_csv}")
 
