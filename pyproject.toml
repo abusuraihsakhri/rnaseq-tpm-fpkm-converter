@@ -23,12 +23,18 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
+dependencies = ["pydantic>=2.0,<3"]
+
 [project.optional-dependencies]
 web = ["fastapi>=0.110", "uvicorn[standard]>=0.27"]
 test = ["pytest>=8.0"]
 
 [project.scripts]
-rnaseq-converter = "cli:main"
+rnaseq-converter = "rnaseq_norm:main"
+rnaseq-audit = "cli:main"
+
+[tool.setuptools]
+py-modules = ["rnaseq_norm", "cli", "enrichment", "simulator"]
 
 [tool.setuptools.packages.find]
 include = ["agents*"]
