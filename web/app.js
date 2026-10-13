@@ -148,6 +148,6 @@ if (typeof document !== 'undefined') {
     const blob = new Blob([exportCsv(currentResult)], {type: 'text/csv;charset=utf-8'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'rnaseq_normalized.csv';
-    document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 }
