@@ -28,6 +28,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[web,test]"
 
+    - name: Check browser code and tests
+      run: |
+        node --check web/app.js
+        node --test tests/browser.test.cjs
+
+    - name: Verify installed command line tool
+      run: rnaseq-converter single --counts 100,200 --lengths-bp 1000,2000
+
     - name: Run Pytest Suite
       run: |
         pytest -v
@@ -40,6 +48,8 @@ jobs:
         python -c "
         from agents.base import PHIGuard, AuditLogger
         import pytest
+        AuditLogger.log('ci', 'test', 'SMOKE_TEST', {'status': 'OK'})
+        assert len(AuditLogger.get_trail()) == 1
         assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
+        print('Audit signature verification passed')
         "
