@@ -48,8 +48,8 @@ class TestProcessBatchValidation:
         process_batch(str(csv_in), str(csv_out))
         assert csv_out.exists()
         content = csv_out.read_text(encoding="utf-8")
-        assert "Pat_001" in content
-        assert "score" in content
+        assert "GeneA" in content
+        assert "TPM_count" in content
 
 
 class TestAuditSecurity:
