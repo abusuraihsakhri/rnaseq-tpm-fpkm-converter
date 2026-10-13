@@ -43,7 +43,7 @@ class TestProcessBatchValidation:
 
     def test_valid_batch_processing(self, tmp_path):
         csv_in = tmp_path / "valid.csv"
-        csv_in.write_text("gene_id,length_bp,count\\nGeneA,1000,150\\n", encoding="utf-8")
+        csv_in.write_text("gene_id,length_bp,count\nGeneA,1000,150\n", encoding="utf-8")
         csv_out = tmp_path / "out.csv"
         process_batch(str(csv_in), str(csv_out))
         assert csv_out.exists()
