@@ -1,7 +1,7 @@
 """
 Specialized Domain Worker Agents for Rnaseq Tpm Fpkm Converter.
-Domain: Post-Quantum Cryptography & Hardware Security
-Standard: NIST FIPS 203/204/205 / ISO/IEC 17825 Standards
+Domain: Legacy generic heuristic audit (separate from RNA-seq normalization)
+Not validated as an RNA-seq QC or clinical safety protocol
 """
 import uuid
 from typing import Dict, Any, List, Optional
@@ -20,7 +20,7 @@ class InvariantQCWorker:
                 origin_worker="InvariantQCWorker",
                 urgency=UrgencyLevel.ELEVATED,
                 summary="Primary Metric Threshold Exceeded",
-                technical_details=f"Primary measurement ({payload.primary_metric:.2f}) exceeds upper reference limit (25.00) under NIST FIPS 203/204/205 / ISO/IEC 17825 Standards.",
+                technical_details=f"Primary measurement ({payload.primary_metric:.2f}) exceeds upper reference limit (25.00) under a project-specific, unvalidated heuristic.",
                 actionable_remediation="Initiate recalibration workflow and review secondary parameters.",
             ))
         return alerts
@@ -57,7 +57,7 @@ class ProtocolConformanceWorker:
                 origin_worker="ProtocolConformanceWorker",
                 urgency=UrgencyLevel.ELEVATED,
                 summary="Protocol Conformance Discordance Detected",
-                technical_details=f"Descriptor '{payload.status_descriptor}' indicates discordance with NIST FIPS 203/204/205 / ISO/IEC 17825 Standards standards.",
+                technical_details=f"Descriptor '{payload.status_descriptor}' indicates discordance with a project-specific, unvalidated heuristic.",
                 actionable_remediation="Re-evaluate input specimen or rerun secondary confirmation assay.",
             ))
         return alerts

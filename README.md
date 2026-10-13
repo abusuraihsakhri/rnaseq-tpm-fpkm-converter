@@ -1,158 +1,88 @@
-# RNA-Seq TPM/FPKM Converter
+# RNA-seq TPM / FPKM Converter
 
-> **Domain:** Bioinformatics & RNA-Seq Normalization
+Normalize feature-level RNA-seq counts to transcripts per million (TPM) and fragments per kilobase per million mapped fragments (FPKM). A dependency-free Python normalization engine, standalone browser interface, and optional FastAPI endpoint use the same standard formulas.
 
-<div align="center">
+## Use in the browser
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+The static application is in [web/](web/). Open `web/index.html` locally or use the published GitHub Pages application once deployment is enabled. Paste or upload CSV, select **Calculate TPM / FPKM**, review the results, and download the normalized matrix. Processing runs entirely in the browser. No remote APIs, accounts, cookies, telemetry, or upload are required.
 
-</div>
+### Input CSV
 
----
-
-## Overview
-
-RNA-Seq TPM, FPKM & RPKM Normalization Engine. Converts raw gene read counts and transcript lengths into Transcripts Per Million (TPM) and FPKM values.
-
-Zero-dependency Python implementation with single and batch evaluation modes.
-
-Author: Dr. Abu Suraih Sakhri
-License: MIT
-
----
-
-## Features
-
-- **Single evaluation mode:** Process individual measurements via CLI
-- **Batch processing:** Process CSV files with multiple records
-- **Multi-agent analysis:** Specialized workers for QC, safety, and protocol conformance
-- **PHI protection:** Outbound guard preventing sensitive data leakage
-- **Audit trail:** HMAC-SHA256 tamper-evident logging
-- **REST API:** FastAPI-based web interface
-
----
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/abusuraihsakhri/rnaseq-tpm-fpkm-converter.git
-cd rnaseq-tpm-fpkm-converter
-
-# Install dependencies
-pip install -e ".[web,test]"
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env and set AUDIT_SECRET_KEY
+```csv
+gene_id,length_bp,control,treated
+GeneA,1000,100,60
+GeneB,2000,200,120
+GeneC,500,50,30
 ```
 
-### Environment Variables
+The first two headers must be `gene_id,length_bp`; subsequent columns are nonnegative read/fragment counts for one or more samples. Gene IDs must be unique; gene lengths must be finite and positive (base pairs). The web interface supports up to 10 MB and 50,000 features per file. Output includes `TPM_<sample>` and `FPKM_<sample>` for every sample.
 
-| Variable | Required | Description |
-|:---------|:---------|:------------|
-| `AUDIT_SECRET_KEY` | Yes | Secret key for HMAC-SHA256 audit signing |
-| `MODEL_PROVIDER` | No | LLM provider: `mock`, `ollama`, `claude`, `openai` (default: `mock`) |
+TPM and FPKM for feature *i* are:
 
-Generate a secure key:
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
+```text
+TPM_i  = 1,000,000 × (count_i / length_bp_i) / Σ_j(count_j / length_bp_j)
+FPKM_i = 1,000,000,000 × count_i / (length_bp_i × library_size)
 ```
 
----
+By default, `library_size` is the total of the supplied feature counts in that sample. If the input contains only a subset of genes, specify the original library total to obtain FPKM values referenced to the complete library; TPM still sums to one million **across supplied features**. Use fragment counts and fragment-library totals for paired-end FPKM, or read counts and read-library totals for the numerically equivalent single-end RPKM calculation. Do not mix units. Gene length definitions and library-size conventions affect results.
 
-## Usage
+**Limitations:** This is count/length scaling, not compositional/batch-effect correction or a differential-expression model. It does not perform CIBERSORTx deconvolution. Prefer raw counts with appropriate count-based models for differential expression.
 
-### CLI - Single Evaluation
+## Python command line
 
-```bash
-python cli.py single --v1 14.5 --v2 4.2 --v3 1.8
-```
-
-### CLI - Batch Processing
+Python 3.10+ is supported.
 
 ```bash
-python cli.py batch -i sample.csv -o results.csv
+python rnaseq_norm.py single --counts 100,200,50 --lengths-bp 1000,2000,500
+python rnaseq_norm.py batch -i sample.csv -o results.csv
+# Single-sample filtered matrix with known complete library total:
+python rnaseq_norm.py batch -i sample.csv -o results.csv --library-size 100000
 ```
 
-### CLI - Audit Mode
+Or install the package:
 
 ```bash
-python cli.py audit --task-id TASK-001 --primary 28.5 --secondary 14.2
+python -m pip install -e ".[web,test]"
+rnaseq-converter batch -i sample.csv -o results.csv
+pytest -q
+node --test tests/browser.test.cjs
 ```
 
-### Web API Server
+The Python normalization module itself uses only the standard library. Installed packaging also includes Pydantic for an **unrelated legacy audit subsystem**.
+
+## Optional REST API and Docker
 
 ```bash
 python cli.py serve --host 127.0.0.1 --port 8000
+# or
+uvicorn agents.api:app --host 127.0.0.1 --port 8000
 ```
 
-### Docker Deployment
+Send JSON to `POST /api/normalize`:
+
+```json
+{"counts":[100,200],"lengths_bp":[1000,2000],"library_size":300}
+```
+
+It returns `tpm`, `fpkm`, and `library_size` arrays/values. `GET /health` checks server health; `GET /` serves the browser interface. The API receives submitted data on its host (unlike the independent browser-only calculation). Interactive API documentation is available at `/docs`.
+
+A separate pre-existing **generic heuristic audit** API and CLI remain accessible through `python cli.py audit`, `/api/audit`, and related endpoints. Its thresholds are not scientifically validated RNA-seq QC or clinical rules. The `chat` command uses a deterministic mock responder, not live model inference. That audit subsystem requires a user-supplied `AUDIT_SECRET_KEY` for HMAC logging:
 
 ```bash
-# Using docker-compose (requires .env file)
-docker-compose up --build
-
-# Or manually
-docker build -t rnaseq-tpm-fpkm-converter .
-docker run -p 8000:8000 --env-file .env rnaseq-tpm-fpkm-converter
+export AUDIT_SECRET_KEY="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+docker compose up --build
 ```
 
----
+Never commit a real `.env` or secret. The regex-based identifier guard is a precaution, **not comprehensive de-identification or a guarantee of regulatory compliance**.
 
-## Input Data Format
+## Development and deployment
 
-CSV files should contain the following columns:
+- Python 3.10–3.12 and recent Chrome, Firefox, Edge, or Safari.
+- Python tests: `pytest -q`. Browser checks: `node --test tests/browser.test.cjs`.
+- GitHub Actions runs checks on changes to `master` and pull requests.
+- Static site contents are in `web/`; the Pages workflow publishes those files when Pages is configured to use GitHub Actions.
+- Docker builds the API as an unprivileged user. No browser Python runtime is required because the arithmetic runs natively in JavaScript.
 
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `Patient_ID` | Patient/sample identifier | Required |
-| `v1` | Primary measurement | Required |
-| `v2` | Secondary measurement | Required |
-| `v3` | Tertiary measurement | Required |
+## License
 
-See `sample.csv` for an example.
-
----
-
-## Testing
-
-```bash
-# Set test secret key
-export AUDIT_SECRET_KEY=test-secret-for-testing
-
-# Run all tests
-pytest -v
-```
-
----
-
-## Project Structure
-
-```
-rnaseq-tpm-fpkm-converter/
-├── agents/                  # Multi-agent analysis framework
-│   ├── api.py              # FastAPI REST endpoints
-│   ├── base.py             # Security, PHI guard, audit trail
-│   ├── models.py           # Pydantic data models
-│   ├── supervisor.py       # Agent orchestration
-│   ├── workers.py          # Specialized analysis workers
-│   └── ...
-├── tests/                   # Test suite
-├── cli.py                   # Command-line interface
-├── rnaseq_norm.py          # Core normalization engine
-├── enrichment.py           # Additional analysis modules
-├── pyproject.toml          # Python package configuration
-├── Dockerfile              # Container build
-└── docker-compose.yml      # Container orchestration
-```
-
----
-
-## Security
-
-- **PHI Guard:** AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers
-- **Audit Trail:** Chained HMAC-SHA256 tamper-evident logs
-- **Path Traversal Protection:** Input validation prevents directory traversal attacks
-- **Secret Management:** No hardcoded secrets; all keys via environment variables
+[MIT](LICENSE). Scientific interpretation and suitability of gene/transcript effective lengths remain the responsibility of the analyst.

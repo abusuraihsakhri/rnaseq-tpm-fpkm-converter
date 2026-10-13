@@ -13,6 +13,8 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
+    env:
+      AUDIT_SECRET_KEY: test-secret-key-for-ci-only-1234567890
     steps:
     - uses: actions/checkout@v4
 
@@ -24,17 +26,30 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic pytest
+        pip install -e ".[web,test]"
+
+    - name: Check browser code and tests
+      run: |
+        node --check web/app.js
+        node --test tests/browser.test.cjs
+
+    - name: Verify installed command line tool
+      run: rnaseq-converter single --counts 100,200 --lengths-bp 1000,2000
 
     - name: Run Pytest Suite
       run: |
         pytest -v
 
-    - name: Security SAST & Zero-PHI Audit
+    - name: Validate Python sources
+      run: python -m compileall -q .
+
+    - name: Audit initialization and integrity smoke test
       run: |
         python -c "
         from agents.base import PHIGuard, AuditLogger
         import pytest
+        AuditLogger.log('ci', 'test', 'SMOKE_TEST', {'status': 'OK'})
+        assert len(AuditLogger.get_trail()) == 1
         assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
+        print('Audit signature verification passed')
         "

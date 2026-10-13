@@ -1,6 +1,6 @@
 """
 Enrichment Feature Implementation for rnaseq-tpm-fpkm-converter.
-Generated based on domain-specific requirements in specifications.
+These experimental placeholder engines do not perform RNA-seq deconvolution,\nCIBERSORTx analysis, or batch-effect correction and must not be used as such.
 """
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Tuple

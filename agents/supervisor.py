@@ -1,6 +1,6 @@
 """
 Supervisor Orchestrator & Operations Intelligence for Rnaseq Tpm Fpkm Converter.
-Domain: Post-Quantum Cryptography & Hardware Security
+Domain: Legacy generic audit (not an RNA-seq assay protocol)
 """
 import uuid
 from typing import Dict, Any, List, Optional
@@ -75,5 +75,5 @@ class SystemSupervisor:
 
     def query_supervisory_chat(self, query: str) -> str:
         PHIGuard.assert_no_phi(query)
-        prompt = f"Supervisor inquiry for Rnaseq Tpm Fpkm Converter under NIST FIPS 203/204/205 / ISO/IEC 17825 Standards: {query}"
+        prompt = f"Supervisor inquiry for Rnaseq Tpm Fpkm Converter (demonstration mode only): {query}"
         return self.llm.invoke(prompt)

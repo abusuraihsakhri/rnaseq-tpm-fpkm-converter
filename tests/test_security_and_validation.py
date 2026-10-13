@@ -43,13 +43,13 @@ class TestProcessBatchValidation:
 
     def test_valid_batch_processing(self, tmp_path):
         csv_in = tmp_path / "valid.csv"
-        csv_in.write_text("Patient,v1,v2\nPat_001,15.0,3.0\n", encoding="utf-8")
+        csv_in.write_text("gene_id,length_bp,count\nGeneA,1000,150\n", encoding="utf-8")
         csv_out = tmp_path / "out.csv"
         process_batch(str(csv_in), str(csv_out))
         assert csv_out.exists()
         content = csv_out.read_text(encoding="utf-8")
-        assert "Pat_001" in content
-        assert "score" in content
+        assert "GeneA" in content
+        assert "TPM_count" in content
 
 
 class TestAuditSecurity:
@@ -111,3 +111,21 @@ class TestEnrichmentSuite:
             assert hasattr(result, "score")
             assert hasattr(result, "alerts")
             assert hasattr(result, "recommendations")
+
+
+def test_signed_audit_detects_field_tampering():
+    from agents.base import AuditTrail
+    trail = AuditTrail(secret_key="unit-test-secret")
+    trail.log("analyst", "system", "CHECK", {"outcome": "ok"})
+    assert trail.verify_integrity()
+    trail.logs[0]["actor"] = "tampered"
+    assert not trail.verify_integrity()
+
+
+def test_audit_trail_exposure_is_copy():
+    from agents.base import AuditTrail
+    trail = AuditTrail(secret_key="unit-test-secret")
+    trail.log("analyst", "system", "CHECK", {"outcome": "ok"})
+    records = trail.get_trail()
+    records[0]["actor"] = "tampered"
+    assert trail.verify_integrity()
