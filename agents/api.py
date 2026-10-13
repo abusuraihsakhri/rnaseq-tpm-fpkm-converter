@@ -1,8 +1,11 @@
 """
 FastAPI REST API Server for Rnaseq Tpm Fpkm Converter.
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from rnaseq_norm import calculate_metrics
 from pydantic import BaseModel
 from .base import AuditLogger, PHIGuard
 from .models import SystemTaskPayload, ConsensusDossier
@@ -12,9 +15,23 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Rnaseq Tpm Fpkm Converter API",
-    description="Enterprise Distributed Component Platform (Post-Quantum Cryptography & Hardware Security)",
-    version="3.0.0-ENTERPRISE",
+    description="RNA-seq TPM and FPKM normalization with an optional legacy audit service",
+    version="3.1.0",
 )
+
+
+class NormalizationRequest(BaseModel):
+    counts: List[float]
+    lengths_bp: List[float]
+    library_size: Optional[float] = None
+
+
+@app.post("/api/normalize")
+def api_normalize(payload: NormalizationRequest):
+    try:
+        return calculate_metrics(payload.counts, payload.lengths_bp, payload.library_size)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 class ChatRequest(BaseModel):
@@ -23,7 +40,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "rnaseq-tpm-fpkm-converter", "domain": "Post-Quantum Cryptography & Hardware Security", "standard": "NIST FIPS 203/204/205 / ISO/IEC 17825 Standards", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "HEALTHY", "service": "rnaseq-tpm-fpkm-converter", "domain": "RNA-seq expression normalization", "version": "3.1.0"}
 
 
 @app.get("/metrics")
@@ -53,3 +70,7 @@ def api_chat(req: ChatRequest):
 @app.get("/api/audit/logs")
 def api_audit_logs():
     return {"audit_trail": AuditLogger.get_trail(), "verified": AuditLogger.verify_integrity()}
+
+
+# Register static frontend last so API routes retain precedence.
+app.mount("/", StaticFiles(directory=str(Path(__file__).resolve().parent.parent / "web"), html=True), name="web")
