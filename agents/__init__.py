@@ -1,7 +1,7 @@
 """
 Rnaseq Tpm Fpkm Converter — Enterprise Automated Analytical Suite.
-Domain: Post-Quantum Cryptography & Hardware Security
-Standard: NIST FIPS 203/204/205 / ISO/IEC 17825 Standards
+Domain: RNA-seq normalization, plus a separate legacy audit
+Legacy audit is not a validated scientific quality standard
 
 """
 __version__ = "3.0.0-ENTERPRISE"
