@@ -98,7 +98,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {parseCsv,
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
   let currentResult = null;
+  const invalidateResult = () => {
+    currentResult = null;
+    $('download').disabled = true;
+    $('summary').hidden = true;
+    $('empty').hidden = false;
+  };
+  $('csv-text').addEventListener('input', invalidateResult);
+  $('library-size').addEventListener('input', invalidateResult);
   $('csv-file').addEventListener('change', async () => {
+    invalidateResult();
     const file = $('csv-file').files[0];
     if (!file) return;
     if (file.size > MAX_BYTES) { $('error').textContent = 'File exceeds 10 MB.'; $('error').hidden = false; return; }
