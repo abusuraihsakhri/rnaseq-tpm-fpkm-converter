@@ -111,3 +111,21 @@ class TestEnrichmentSuite:
             assert hasattr(result, "score")
             assert hasattr(result, "alerts")
             assert hasattr(result, "recommendations")
+
+
+def test_signed_audit_detects_field_tampering():
+    from agents.base import AuditTrail
+    trail = AuditTrail(secret_key="unit-test-secret")
+    trail.log("analyst", "system", "CHECK", {"outcome": "ok"})
+    assert trail.verify_integrity()
+    trail.logs[0]["actor"] = "tampered"
+    assert not trail.verify_integrity()
+
+
+def test_audit_trail_exposure_is_copy():
+    from agents.base import AuditTrail
+    trail = AuditTrail(secret_key="unit-test-secret")
+    trail.log("analyst", "system", "CHECK", {"outcome": "ok"})
+    records = trail.get_trail()
+    records[0]["actor"] = "tampered"
+    assert trail.verify_integrity()
